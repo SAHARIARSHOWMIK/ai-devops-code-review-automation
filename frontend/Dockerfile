@@ -1,7 +1,7 @@
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
-COPY frontend/package*.json ./
-RUN npm ci
+COPY frontend/package*.json frontend/.npmrc ./
+RUN npm ci --include=dev --no-audit --no-fund
 COPY frontend/ ./
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL

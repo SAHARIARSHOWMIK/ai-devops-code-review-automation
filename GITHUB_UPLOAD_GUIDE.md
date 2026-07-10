@@ -8,12 +8,12 @@ Description:
 
 > AI-powered DevOps platform for pull-request review, code-quality analysis, security findings, test recommendations, documentation checks, approval workflows, GitHub integration, and engineering analytics.
 
-Create an empty public repository. Do not add a README, `.gitignore`, or license on GitHub because they are included here.
+The repository already exists. Use the update commands supplied with the corrected ZIP, or clone the repository and mirror these corrected files into the clone before committing.
 
 ## PowerShell commands
 
 ```powershell
-cd "C:\Users\showmik\Downloads\ai-devops-code-review-automation-github-ready-final"
+cd "C:\Users\showmik\Downloads\ai-devops-code-review-automation-fully-corrected"
 
 git init
 git add .

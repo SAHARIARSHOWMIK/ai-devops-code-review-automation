@@ -36,12 +36,19 @@ def test_safe_extract_tar_rejects_links(tmp_path: Path):
 
 
 def test_workspace_analyzer_falls_back_when_disabled(tmp_path: Path):
-    results = run_language_analyzers("Python", '+password = "fake-demo-password"', [{"filename": "app.py"}], workspace=tmp_path)
+    results = run_language_analyzers(
+        "Python",
+        '+password = "fake-demo-password"',
+        [{"filename": "app.py"}],
+        workspace=tmp_path,
+    )
     assert results
     assert all(row.output["execution_mode"] == "safe_adapter" for row in results)
 
 
 def test_binary_paths_are_not_needed_for_diff_rules():
-    results = run_language_analyzers("Unknown", "+safe_change = True", [{"filename": "asset.png"}])
+    results = run_language_analyzers(
+        "Unknown", "+safe_change = True", [{"filename": "asset.png"}]
+    )
     assert len(results) == 1
     assert results[0].tool_name == "generic-static-review"

@@ -31,7 +31,11 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:4173", "http://localhost:5173"],
+    allow_origins=[
+        settings.frontend_url,
+        "http://localhost:4173",
+        "http://localhost:5173",
+    ],
     allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|172\.\d+\.\d+\.\d+)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
@@ -43,6 +47,7 @@ frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 if os.getenv("SERVE_FRONTEND", "false").lower() == "true" and frontend_dist.exists():
     app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
 else:
+
     @app.get("/")
     def root() -> dict:
         return {"name": settings.app_name, "docs": "/docs", "health": "/api/health"}

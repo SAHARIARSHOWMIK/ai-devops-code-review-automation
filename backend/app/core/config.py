@@ -32,7 +32,9 @@ class Settings(BaseSettings):
     max_diff_characters: int = 200_000
     workspace_root: str = "./workspaces"
 
-    model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_file=(".env", "../.env"), extra="ignore", case_sensitive=False
+    )
 
     @property
     def workspace_path(self) -> Path:

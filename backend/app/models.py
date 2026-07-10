@@ -2,7 +2,17 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .core.database import Base
 
@@ -25,30 +35,44 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(150), unique=True, index=True)
     status: Mapped[str] = mapped_column(String(30), default="active")
     github_installation_id: Mapped[str | None] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    users: Mapped[list[User]] = relationship(back_populates="organization", cascade="all, delete-orphan")
-    repositories: Mapped[list[Repository]] = relationship(back_populates="organization", cascade="all, delete-orphan")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+    users: Mapped[list[User]] = relationship(
+        back_populates="organization", cascade="all, delete-orphan"
+    )
+    repositories: Mapped[list[Repository]] = relationship(
+        back_populates="organization", cascade="all, delete-orphan"
+    )
 
 
 class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
-    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    organization_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id"), index=True
+    )
     name: Mapped[str] = mapped_column(String(150))
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(500))
     role: Mapped[str] = mapped_column(String(50), default=UserRole.DEVELOPER.value)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
     organization: Mapped[Organization] = relationship(back_populates="users")
 
 
 class Repository(Base):
     __tablename__ = "repositories"
-    __table_args__ = (UniqueConstraint("organization_id", "owner", "name", name="uq_org_repository"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "owner", "name", name="uq_org_repository"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
-    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    organization_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id"), index=True
+    )
     github_repository_id: Mapped[str | None] = mapped_column(String(100))
     owner: Mapped[str] = mapped_column(String(150))
     name: Mapped[str] = mapped_column(String(150))
@@ -57,22 +81,40 @@ class Repository(Base):
     visibility: Mapped[str] = mapped_column(String(30), default="private")
     connection_status: Mapped[str] = mapped_column(String(30), default="connected")
     webhook_status: Mapped[str] = mapped_column(String(30), default="active")
-    active_review_profile: Mapped[str] = mapped_column(String(80), default="standard_application")
-    last_synchronized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    active_review_profile: Mapped[str] = mapped_column(
+        String(80), default="standard_application"
+    )
+    last_synchronized_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
     organization: Mapped[Organization] = relationship(back_populates="repositories")
-    policy: Mapped[RepositoryPolicy | None] = relationship(back_populates="repository", uselist=False, cascade="all, delete-orphan")
-    pull_requests: Mapped[list[PullRequest]] = relationship(back_populates="repository", cascade="all, delete-orphan")
+    policy: Mapped[RepositoryPolicy | None] = relationship(
+        back_populates="repository", uselist=False, cascade="all, delete-orphan"
+    )
+    pull_requests: Mapped[list[PullRequest]] = relationship(
+        back_populates="repository", cascade="all, delete-orphan"
+    )
 
 
 class RepositoryPolicy(Base):
     __tablename__ = "repository_policies"
     id: Mapped[int] = mapped_column(primary_key=True)
-    repository_id: Mapped[int] = mapped_column(ForeignKey("repositories.id"), unique=True)
+    repository_id: Mapped[int] = mapped_column(
+        ForeignKey("repositories.id"), unique=True
+    )
     review_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    review_profile: Mapped[str] = mapped_column(String(80), default="standard_application")
-    monitored_branches: Mapped[list[str]] = mapped_column(JSON, default=lambda: ["main", "develop"])
-    ignored_paths: Mapped[list[str]] = mapped_column(JSON, default=lambda: ["vendor/**", "node_modules/**", "dist/**"])
+    review_profile: Mapped[str] = mapped_column(
+        String(80), default="standard_application"
+    )
+    monitored_branches: Mapped[list[str]] = mapped_column(
+        JSON, default=lambda: ["main", "develop"]
+    )
+    ignored_paths: Mapped[list[str]] = mapped_column(
+        JSON, default=lambda: ["vendor/**", "node_modules/**", "dist/**"]
+    )
     analyzer_settings: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     maximum_diff_size: Mapped[int] = mapped_column(Integer, default=5000)
     minimum_severity: Mapped[str] = mapped_column(String(20), default="medium")
@@ -87,9 +129,13 @@ class RepositoryPolicy(Base):
 
 class PullRequest(Base):
     __tablename__ = "pull_requests"
-    __table_args__ = (UniqueConstraint("repository_id", "github_number", name="uq_repo_pr_number"),)
+    __table_args__ = (
+        UniqueConstraint("repository_id", "github_number", name="uq_repo_pr_number"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
-    repository_id: Mapped[int] = mapped_column(ForeignKey("repositories.id"), index=True)
+    repository_id: Mapped[int] = mapped_column(
+        ForeignKey("repositories.id"), index=True
+    )
     github_number: Mapped[int] = mapped_column(Integer)
     title: Mapped[str] = mapped_column(String(300))
     description: Mapped[str] = mapped_column(Text, default="")
@@ -110,33 +156,53 @@ class PullRequest(Base):
     commits: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     diff_text: Mapped[str] = mapped_column(Text, default="")
     repository_context: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
     repository: Mapped[Repository] = relationship(back_populates="pull_requests")
-    review_runs: Mapped[list[ReviewRun]] = relationship(back_populates="pull_request", cascade="all, delete-orphan")
+    review_runs: Mapped[list[ReviewRun]] = relationship(
+        back_populates="pull_request", cascade="all, delete-orphan"
+    )
 
 
 class ReviewRun(Base):
     __tablename__ = "review_runs"
     id: Mapped[int] = mapped_column(primary_key=True)
-    pull_request_id: Mapped[int] = mapped_column(ForeignKey("pull_requests.id"), index=True)
+    pull_request_id: Mapped[int] = mapped_column(
+        ForeignKey("pull_requests.id"), index=True
+    )
     version: Mapped[int] = mapped_column(Integer, default=1)
     commit_sha: Mapped[str] = mapped_column(String(64))
-    trigger_event: Mapped[str] = mapped_column(String(80), default="pull_request.opened")
+    trigger_event: Mapped[str] = mapped_column(
+        String(80), default="pull_request.opened"
+    )
     status: Mapped[str] = mapped_column(String(50), default="pending_analysis")
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     analysis_duration_ms: Mapped[int | None] = mapped_column(Integer)
     final_summary: Mapped[str] = mapped_column(Text, default="")
-    merge_recommendation: Mapped[str] = mapped_column(String(80), default="analysis_incomplete")
+    merge_recommendation: Mapped[str] = mapped_column(
+        String(80), default="analysis_incomplete"
+    )
     risk_score: Mapped[int] = mapped_column(Integer, default=0)
     risk_factors: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     failure_reason: Mapped[str | None] = mapped_column(Text)
     pull_request: Mapped[PullRequest] = relationship(back_populates="review_runs")
-    findings: Mapped[list[Finding]] = relationship(back_populates="review_run", cascade="all, delete-orphan")
-    analyzer_runs: Mapped[list[AnalyzerRun]] = relationship(back_populates="review_run", cascade="all, delete-orphan")
-    test_recommendations: Mapped[list[TestRecommendation]] = relationship(back_populates="review_run", cascade="all, delete-orphan")
-    documentation_recommendations: Mapped[list[DocumentationRecommendation]] = relationship(back_populates="review_run", cascade="all, delete-orphan")
+    findings: Mapped[list[Finding]] = relationship(
+        back_populates="review_run", cascade="all, delete-orphan"
+    )
+    analyzer_runs: Mapped[list[AnalyzerRun]] = relationship(
+        back_populates="review_run", cascade="all, delete-orphan"
+    )
+    test_recommendations: Mapped[list[TestRecommendation]] = relationship(
+        back_populates="review_run", cascade="all, delete-orphan"
+    )
+    documentation_recommendations: Mapped[list[DocumentationRecommendation]] = (
+        relationship(back_populates="review_run", cascade="all, delete-orphan")
+    )
 
 
 class AnalyzerRun(Base):
@@ -175,9 +241,13 @@ class Finding(Base):
     reviewer_comment: Mapped[str | None] = mapped_column(Text)
     edited_content: Mapped[str | None] = mapped_column(Text)
     published_comment_id: Mapped[str | None] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
     review_run: Mapped[ReviewRun] = relationship(back_populates="findings")
-    decisions: Mapped[list[FindingDecision]] = relationship(back_populates="finding", cascade="all, delete-orphan")
+    decisions: Mapped[list[FindingDecision]] = relationship(
+        back_populates="finding", cascade="all, delete-orphan"
+    )
 
 
 class FindingDecision(Base):
@@ -188,7 +258,9 @@ class FindingDecision(Base):
     decision: Mapped[str] = mapped_column(String(50))
     edited_content: Mapped[str | None] = mapped_column(Text)
     comment: Mapped[str | None] = mapped_column(Text)
-    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    decided_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
     finding: Mapped[Finding] = relationship(back_populates="decisions")
 
 
@@ -213,7 +285,9 @@ class DocumentationRecommendation(Base):
     reason: Mapped[str] = mapped_column(Text)
     suggested_update: Mapped[str] = mapped_column(Text)
     priority: Mapped[str] = mapped_column(String(20), default="medium")
-    review_run: Mapped[ReviewRun] = relationship(back_populates="documentation_recommendations")
+    review_run: Mapped[ReviewRun] = relationship(
+        back_populates="documentation_recommendations"
+    )
 
 
 class GitHubPublication(Base):
@@ -232,14 +306,18 @@ class GitHubPublication(Base):
 class SuppressionRule(Base):
     __tablename__ = "suppression_rules"
     id: Mapped[int] = mapped_column(primary_key=True)
-    repository_id: Mapped[int] = mapped_column(ForeignKey("repositories.id"), index=True)
+    repository_id: Mapped[int] = mapped_column(
+        ForeignKey("repositories.id"), index=True
+    )
     rule_type: Mapped[str] = mapped_column(String(30))
     rule_identifier: Mapped[str] = mapped_column(String(120))
     file_pattern: Mapped[str | None] = mapped_column(String(500))
     reason: Mapped[str] = mapped_column(Text)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
 
 class Notification(Base):
@@ -251,22 +329,32 @@ class Notification(Base):
     message: Mapped[str] = mapped_column(Text)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     related_review_id: Mapped[int | None] = mapped_column(ForeignKey("review_runs.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id: Mapped[int] = mapped_column(primary_key=True)
     actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
-    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), index=True)
-    repository_id: Mapped[int | None] = mapped_column(ForeignKey("repositories.id"), index=True)
-    pull_request_id: Mapped[int | None] = mapped_column(ForeignKey("pull_requests.id"), index=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        ForeignKey("organizations.id"), index=True
+    )
+    repository_id: Mapped[int | None] = mapped_column(
+        ForeignKey("repositories.id"), index=True
+    )
+    pull_request_id: Mapped[int | None] = mapped_column(
+        ForeignKey("pull_requests.id"), index=True
+    )
     event_type: Mapped[str] = mapped_column(String(100))
     old_value: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     new_value: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     result: Mapped[str] = mapped_column(String(30), default="success")
     ip_address: Mapped[str | None] = mapped_column(String(80))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
 
 class WebhookEvent(Base):
@@ -279,4 +367,6 @@ class WebhookEvent(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(30), default="received")
     error_details: Mapped[str | None] = mapped_column(Text)
-    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )

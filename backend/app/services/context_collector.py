@@ -1,6 +1,7 @@
 from __future__ import annotations
 import base64
 import io
+import logging
 import fnmatch
 import shutil
 import tarfile
@@ -10,10 +11,21 @@ from pathlib import Path
 from typing import Iterator
 from .github import GitHubAppClient
 
+logger = logging.getLogger(__name__)
+
+
 CONTEXT_FILES = [
-    "README.md", "CONTRIBUTING.md", "SECURITY.md", ".github/copilot-instructions.md",
-    "pyproject.toml", "requirements.txt", "package.json", "composer.json", "pom.xml",
-    "Dockerfile", "docker-compose.yml",
+    "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    ".github/copilot-instructions.md",
+    "pyproject.toml",
+    "requirements.txt",
+    "package.json",
+    "composer.json",
+    "pom.xml",
+    "Dockerfile",
+    "docker-compose.yml",
 ]
 
 
@@ -38,21 +50,30 @@ class RepositoryContextCollector:
     def __init__(self, client: GitHubAppClient | None = None) -> None:
         self.client = client or GitHubAppClient()
 
-    def collect_pull_request(self, owner: str, repo: str, number: int, ignored_paths: list[str] | None = None) -> dict:
+    def collect_pull_request(
+        self, owner: str, repo: str, number: int, ignored_paths: list[str] | None = None
+    ) -> dict:
         pr = self.client.fetch_pull_request(owner, repo, number)
         files = self.client.fetch_files(owner, repo, number)
         commits = self.client.fetch_commits(owner, repo, number)
         context_documents: dict[str, str] = {}
         for path in CONTEXT_FILES:
             try:
-                item = self.client.fetch_repository_content(owner, repo, path, pr["base"]["sha"])
+                item = self.client.fetch_repository_content(
+                    owner, repo, path, pr["base"]["sha"]
+                )
                 if item.get("encoding") == "base64" and item.get("content"):
-                    context_documents[path] = base64.b64decode(item["content"]).decode("utf-8", errors="replace")[:40_000]
-            except Exception:
-                continue
+                    context_documents[path] = base64.b64decode(item["content"]).decode(
+                        "utf-8", errors="replace"
+                    )[:40_000]
+            except Exception as exc:
+                logger.debug("Skipping unavailable context file %s: %s", path, exc)
         ignored_paths = ignored_paths or []
+
         def included(filename: str) -> bool:
-            return not any(fnmatch.fnmatch(filename, pattern) for pattern in ignored_paths)
+            return not any(
+                fnmatch.fnmatch(filename, pattern) for pattern in ignored_paths
+            )
 
         normalized_files = [
             {
@@ -64,9 +85,16 @@ class RepositoryContextCollector:
                 "patch": (item.get("patch") or "")[:80_000],
             }
             for item in files
-            if included(item.get("filename", "")) and not item.get("filename", "").lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".jar"))
+            if included(item.get("filename", ""))
+            and not item.get("filename", "")
+            .lower()
+            .endswith((".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".jar"))
         ]
-        diff_text = "\n\n".join(f"diff --git a/{f['filename']} b/{f['filename']}\n{f['patch']}" for f in normalized_files if f["patch"])
+        diff_text = "\n\n".join(
+            f"diff --git a/{f['filename']} b/{f['filename']}\n{f['patch']}"
+            for f in normalized_files
+            if f["patch"]
+        )
         return {
             "title": pr.get("title", "Untitled pull request"),
             "description": pr.get("body") or "",
@@ -78,7 +106,13 @@ class RepositoryContextCollector:
             "additions": pr.get("additions", 0),
             "deletions": pr.get("deletions", 0),
             "changed_files": normalized_files,
-            "commits": [{"sha": c.get("sha"), "message": (c.get("commit") or {}).get("message", "")} for c in commits],
+            "commits": [
+                {
+                    "sha": c.get("sha"),
+                    "message": (c.get("commit") or {}).get("message", ""),
+                }
+                for c in commits
+            ],
             "diff_text": diff_text,
             "repository_context": context_documents,
         }

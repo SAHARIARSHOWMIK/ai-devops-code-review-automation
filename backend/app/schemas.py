@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Literal
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class ORMModel(BaseModel):
@@ -64,7 +64,9 @@ class PolicyUpdate(BaseModel):
     review_enabled: bool = True
     review_profile: str = "standard_application"
     monitored_branches: list[str] = Field(default_factory=lambda: ["main", "develop"])
-    ignored_paths: list[str] = Field(default_factory=lambda: ["vendor/**", "node_modules/**", "dist/**"])
+    ignored_paths: list[str] = Field(
+        default_factory=lambda: ["vendor/**", "node_modules/**", "dist/**"]
+    )
     analyzer_settings: dict[str, Any] = Field(default_factory=dict)
     maximum_diff_size: int = Field(default=5000, ge=100, le=100000)
     minimum_severity: Literal["info", "low", "medium", "high", "critical"] = "medium"
@@ -162,7 +164,16 @@ class FindingOut(ORMModel):
 
 
 class FindingDecisionRequest(BaseModel):
-    decision: Literal["approve", "edit", "dismiss", "false_positive", "suppress", "internal_note", "fixed", "reopen"]
+    decision: Literal[
+        "approve",
+        "edit",
+        "dismiss",
+        "false_positive",
+        "suppress",
+        "internal_note",
+        "fixed",
+        "reopen",
+    ]
     edited_content: str | None = None
     comment: str | None = None
     create_suppression: bool = False

@@ -165,7 +165,7 @@ Analyzer execution is isolated in the analyzer-worker container and uses fixed c
 ### Requirements
 
 - Python 3.12+
-- Node.js 20+
+- Node.js 22.12+
 - Git
 - Docker Desktop is optional for the full PostgreSQL/Redis/worker stack
 
@@ -227,7 +227,7 @@ cd backend
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 copy ..\.env.example .env
 alembic upgrade head
 uvicorn app.main:app --reload
@@ -237,7 +237,7 @@ uvicorn app.main:app --reload
 
 ```powershell
 cd frontend
-npm ci
+npm ci --include=dev --no-audit --no-fund
 npm run dev
 ```
 
@@ -264,7 +264,7 @@ Services:
 
 - React/Nginx frontend: `http://localhost:8080`
 - FastAPI backend: `http://localhost:8000`
-- PostgreSQL: internal service `db`
+- PostgreSQL: internal service `postgres`
 - Redis: internal service `redis`
 - Analyzer/Celery worker: internal service `worker`
 
@@ -321,21 +321,26 @@ Backend:
 ```powershell
 cd backend
 $env:PYTHONPATH="."
-pytest -q
+ruff format --check app tests
+ruff check app tests
+mypy app --ignore-missing-imports --no-error-summary --show-error-codes
+bandit -q -ll -r app
+python -m compileall -q app tests
+pytest --cov=app --cov-report=term-missing
 ```
 
 Frontend:
 
 ```powershell
 cd frontend
-npm ci
+npm ci --include=dev --no-audit --no-fund
 npm run lint
 npm run build
 ```
 
-The repository currently includes **52 passing backend tests** covering authentication, RBAC, policies, reviews, decisions, suppressions, publishing, webhooks, context extraction safety, analyzer behavior, risk scoring, analytics, notifications, and audit logs.
+The repository currently includes **53 passing backend tests** covering authentication, RBAC, policies, reviews, decisions, suppressions, publishing, webhooks, context extraction safety, analyzer behavior, risk scoring, analytics, notifications, and audit logs.
 
-GitHub Actions runs backend tests with coverage, TypeScript checks, the React production build, and both Docker image builds.
+GitHub Actions runs backend formatting, linting, security scanning, compilation, tests with coverage, frontend dependency installation with development types, TypeScript checks, dependency audit, the React production build, and the backend, frontend, and analyzer-worker Docker image builds.
 
 ## Security architecture
 

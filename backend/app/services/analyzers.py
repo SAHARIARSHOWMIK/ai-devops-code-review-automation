@@ -2,7 +2,10 @@ from __future__ import annotations
 import json
 import re
 import shutil
+
+# Commands are fixed allowlists and always run with shell=False.
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,15 +33,78 @@ LANGUAGE_TOOLS = {
 }
 
 PATTERNS = [
-    (r"(?i)(api[_-]?key|secret|password)\s*[=:]\s*['\"][^'\"]{5,}", "security", "critical", "Hard-coded credential", "Remove the secret from source control and load it from a managed secret store.", "SEC001"),
-    (r"(?i)(eval\(|exec\(|os\.system\(|subprocess\..*shell\s*=\s*True)", "security", "high", "Unsafe command or dynamic execution", "Use an allowlisted command invocation without shell expansion and validate every argument.", "SEC002"),
-    (r"(?i)(select|update|delete|insert).*\+.*(request|input|param|user)", "security", "high", "Possible SQL injection", "Use parameterized queries or the ORM query builder.", "SEC003"),
-    (r"(?i)(open\(|file_get_contents\().*(request|input|param|filename)", "security", "high", "Unvalidated file path", "Resolve the path against an allowlisted root and reject traversal sequences.", "SEC004"),
-    (r"(?i)(allow_origins\s*=\s*\[?['\"]\*|Access-Control-Allow-Origin.*\*)", "security", "medium", "Overly permissive CORS", "Restrict CORS origins to the trusted frontend domains.", "SEC005"),
-    (r"(?i)(TODO|FIXME).*(auth|validation|security|error)", "correctness", "medium", "Unresolved critical implementation note", "Resolve the flagged behavior before merging or document an explicit follow-up issue.", "COR001"),
-    (r"(?i)except\s+(Exception)?\s*:\s*(pass|return None)", "correctness", "medium", "Swallowed exception", "Log the failure with safe context and return a typed error or re-raise an appropriate exception.", "COR002"),
-    (r"(?i)for\s+\w+\s+in\s+.*:\s*.*(query|select|find|request|get\()", "performance", "medium", "Potential repeated I/O inside loop", "Batch the database or network operation and process the result set in memory.", "PERF001"),
-    (r"(?i)(dockerfile|workflow|ci).*(latest|curl.*\|.*sh)", "devops", "high", "Unpinned or unsafe build dependency", "Pin the dependency/image version and verify downloaded artifacts before execution.", "DEV001"),
+    (
+        r"(?i)(api[_-]?key|secret|password)\s*[=:]\s*['\"][^'\"]{5,}",
+        "security",
+        "critical",
+        "Hard-coded credential",
+        "Remove the secret from source control and load it from a managed secret store.",
+        "SEC001",
+    ),
+    (
+        r"(?i)(eval\(|exec\(|os\.system\(|subprocess\..*shell\s*=\s*True)",
+        "security",
+        "high",
+        "Unsafe command or dynamic execution",
+        "Use an allowlisted command invocation without shell expansion and validate every argument.",
+        "SEC002",
+    ),
+    (
+        r"(?i)(select|update|delete|insert).*\+.*(request|input|param|user)",
+        "security",
+        "high",
+        "Possible SQL injection",
+        "Use parameterized queries or the ORM query builder.",
+        "SEC003",
+    ),
+    (
+        r"(?i)(open\(|file_get_contents\().*(request|input|param|filename)",
+        "security",
+        "high",
+        "Unvalidated file path",
+        "Resolve the path against an allowlisted root and reject traversal sequences.",
+        "SEC004",
+    ),
+    (
+        r"(?i)(allow_origins\s*=\s*\[?['\"]\*|Access-Control-Allow-Origin.*\*)",
+        "security",
+        "medium",
+        "Overly permissive CORS",
+        "Restrict CORS origins to the trusted frontend domains.",
+        "SEC005",
+    ),
+    (
+        r"(?i)(TODO|FIXME).*(auth|validation|security|error)",
+        "correctness",
+        "medium",
+        "Unresolved critical implementation note",
+        "Resolve the flagged behavior before merging or document an explicit follow-up issue.",
+        "COR001",
+    ),
+    (
+        r"(?i)except\s+(Exception)?\s*:\s*(pass|return None)",
+        "correctness",
+        "medium",
+        "Swallowed exception",
+        "Log the failure with safe context and return a typed error or re-raise an appropriate exception.",
+        "COR002",
+    ),
+    (
+        r"(?i)for\s+\w+\s+in\s+.*:\s*.*(query|select|find|request|get\()",
+        "performance",
+        "medium",
+        "Potential repeated I/O inside loop",
+        "Batch the database or network operation and process the result set in memory.",
+        "PERF001",
+    ),
+    (
+        r"(?i)(dockerfile|workflow|ci).*(latest|curl.*\|.*sh)",
+        "devops",
+        "high",
+        "Unpinned or unsafe build dependency",
+        "Pin the dependency/image version and verify downloaded artifacts before execution.",
+        "DEV001",
+    ),
 ]
 
 
@@ -48,7 +114,9 @@ def _line_for_offset(text: str, offset: int) -> int:
 
 def deterministic_findings(diff_text: str, changed_files: list[dict]) -> list[dict]:
     findings: list[dict] = []
-    default_file = changed_files[0].get("filename", "unknown") if changed_files else "unknown"
+    default_file = (
+        changed_files[0].get("filename", "unknown") if changed_files else "unknown"
+    )
     for pattern, category, severity, title, fix, rule in PATTERNS:
         for match in re.finditer(pattern, diff_text, flags=re.DOTALL):
             line = _line_for_offset(diff_text, match.start())
@@ -74,7 +142,16 @@ def deterministic_findings(diff_text: str, changed_files: list[dict]) -> list[di
     return findings
 
 
-def _finding(source: str, category: str, severity: str, title: str, message: str, path: str, line: int, rule: str) -> dict:
+def _finding(
+    source: str,
+    category: str,
+    severity: str,
+    title: str,
+    message: str,
+    path: str,
+    line: int,
+    rule: str,
+) -> dict:
     data = {
         "source": source,
         "sources": [source, rule],
@@ -102,7 +179,16 @@ def _parse_ruff(stdout: str) -> list[dict]:
     except json.JSONDecodeError:
         return []
     return [
-        _finding("ruff", "maintainability", "low", row.get("message", "Ruff finding"), row.get("message", ""), row.get("filename", "unknown"), int((row.get("location") or {}).get("row", 1)), row.get("code") or "RUFF")
+        _finding(
+            "ruff",
+            "maintainability",
+            "low",
+            row.get("message", "Ruff finding"),
+            row.get("message", ""),
+            row.get("filename", "unknown"),
+            int((row.get("location") or {}).get("row", 1)),
+            row.get("code") or "RUFF",
+        )
         for row in rows
     ]
 
@@ -114,21 +200,49 @@ def _parse_bandit(stdout: str) -> list[dict]:
         return []
     severity_map = {"HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
     return [
-        _finding("bandit", "security", severity_map.get(row.get("issue_severity"), "medium"), row.get("issue_text", "Bandit security finding"), row.get("issue_text", ""), row.get("filename", "unknown"), int(row.get("line_number", 1)), row.get("test_id") or "BANDIT")
+        _finding(
+            "bandit",
+            "security",
+            severity_map.get(row.get("issue_severity"), "medium"),
+            row.get("issue_text", "Bandit security finding"),
+            row.get("issue_text", ""),
+            row.get("filename", "unknown"),
+            int(row.get("line_number", 1)),
+            row.get("test_id") or "BANDIT",
+        )
         for row in rows
     ]
 
 
-def _tool_commands(language: str, run_project_tests: bool) -> list[tuple[str, list[str], str]]:
+def _tool_commands(
+    language: str, run_project_tests: bool
+) -> list[tuple[str, list[str], str]]:
     language = language.lower()
     if language == "python":
         commands = [
             ("ruff", ["ruff", "check", ".", "--output-format", "json"], "ruff"),
-            ("bandit", ["bandit", "-r", ".", "-f", "json", "-x", ".venv,venv,tests"], "bandit"),
+            (
+                "bandit",
+                ["bandit", "-r", ".", "-f", "json", "-x", ".venv,venv,tests"],
+                "bandit",
+            ),
             ("mypy", ["mypy", ".", "--no-error-summary", "--show-error-codes"], "text"),
         ]
         if run_project_tests:
-            commands.append(("pytest-coverage", ["pytest", "-q", "--disable-warnings", "--maxfail=1", "--cov=.", "--cov-report=term"], "text"))
+            commands.append(
+                (
+                    "pytest-coverage",
+                    [
+                        "pytest",
+                        "-q",
+                        "--disable-warnings",
+                        "--maxfail=1",
+                        "--cov=.",
+                        "--cov-report=term",
+                    ],
+                    "text",
+                )
+            )
         return commands
     if language in {"javascript", "typescript"}:
         commands = [
@@ -137,16 +251,28 @@ def _tool_commands(language: str, run_project_tests: bool) -> list[tuple[str, li
             ("npm-audit", ["npm", "audit", "--json", "--package-lock-only"], "json"),
         ]
         if run_project_tests:
-            commands.append(("test-coverage", ["npm", "test", "--", "--runInBand"], "text"))
+            commands.append(
+                ("test-coverage", ["npm", "test", "--", "--runInBand"], "text")
+            )
         return commands
     if language == "php":
         commands = [
-            ("phpstan", ["phpstan", "analyse", "--error-format=json", "--no-progress"], "json"),
+            (
+                "phpstan",
+                ["phpstan", "analyse", "--error-format=json", "--no-progress"],
+                "json",
+            ),
             ("laravel-pint", ["pint", "--test"], "text"),
-            ("composer-audit", ["composer", "audit", "--locked", "--format=json"], "json"),
+            (
+                "composer-audit",
+                ["composer", "audit", "--locked", "--format=json"],
+                "json",
+            ),
         ]
         if run_project_tests:
-            commands.append(("phpunit-coverage", ["php", "artisan", "test", "--coverage"], "text"))
+            commands.append(
+                ("phpunit-coverage", ["php", "artisan", "test", "--coverage"], "text")
+            )
         return commands
     if language == "java":
         commands = [
@@ -160,13 +286,24 @@ def _tool_commands(language: str, run_project_tests: bool) -> list[tuple[str, li
     return []
 
 
-def _run_tool(tool: str, command: list[str], parser: str, workspace: Path) -> AnalyzerResult:
+def _run_tool(
+    tool: str, command: list[str], parser: str, workspace: Path
+) -> AnalyzerResult:
     started = time.perf_counter()
     executable = shutil.which(command[0])
     if not executable:
-        return AnalyzerResult(tool, "unavailable", "unavailable", 0, [], {"command": command, "reason": "executable_not_installed"}, "Analyzer executable is not installed in this worker image")
+        return AnalyzerResult(
+            tool,
+            "unavailable",
+            "unavailable",
+            0,
+            [],
+            {"command": command, "reason": "executable_not_installed"},
+            "Analyzer executable is not installed in this worker image",
+        )
     command = [executable, *command[1:]]
     try:
+        # The executable and arguments come from the fixed command allowlists above.
         process = subprocess.run(
             command,
             cwd=workspace,
@@ -174,7 +311,10 @@ def _run_tool(tool: str, command: list[str], parser: str, workspace: Path) -> An
             text=True,
             timeout=get_settings().analyzer_timeout_seconds,
             shell=False,
-            env={"PATH": str(Path(executable).parent) + ":/usr/local/bin:/usr/bin:/bin", "HOME": "/tmp"},
+            env={
+                "PATH": str(Path(executable).parent) + ":/usr/local/bin:/usr/bin:/bin",
+                "HOME": tempfile.gettempdir(),
+            },
         )
         duration = int((time.perf_counter() - started) * 1000)
         if parser == "ruff":
@@ -190,42 +330,87 @@ def _run_tool(tool: str, command: list[str], parser: str, workspace: Path) -> An
             status=status,
             duration_ms=duration,
             findings=findings,
-            output={"return_code": process.returncode, "stdout": process.stdout[-20_000:], "stderr": process.stderr[-10_000:], "command": command},
-            error_details=None if status == "completed" else process.stderr[-2_000:] or f"Exited with code {process.returncode}",
+            output={
+                "return_code": process.returncode,
+                "stdout": process.stdout[-20_000:],
+                "stderr": process.stderr[-10_000:],
+                "command": command,
+            },
+            error_details=None
+            if status == "completed"
+            else process.stderr[-2_000:] or f"Exited with code {process.returncode}",
         )
     except subprocess.TimeoutExpired:
-        return AnalyzerResult(tool, "live-adapter-1.0", "timeout", int((time.perf_counter() - started) * 1000), [], {"command": command}, "Analyzer exceeded the configured timeout")
+        return AnalyzerResult(
+            tool,
+            "live-adapter-1.0",
+            "timeout",
+            int((time.perf_counter() - started) * 1000),
+            [],
+            {"command": command},
+            "Analyzer exceeded the configured timeout",
+        )
     except OSError as exc:
-        return AnalyzerResult(tool, "live-adapter-1.0", "failed", int((time.perf_counter() - started) * 1000), [], {"command": command}, str(exc))
+        return AnalyzerResult(
+            tool,
+            "live-adapter-1.0",
+            "failed",
+            int((time.perf_counter() - started) * 1000),
+            [],
+            {"command": command},
+            str(exc),
+        )
 
 
-def run_language_analyzers(language: str, diff_text: str, changed_files: list[dict], workspace: Path | None = None) -> list[AnalyzerResult]:
+def run_language_analyzers(
+    language: str,
+    diff_text: str,
+    changed_files: list[dict],
+    workspace: Path | None = None,
+) -> list[AnalyzerResult]:
     deterministic = deterministic_findings(diff_text, changed_files)
     settings = get_settings()
     if workspace and settings.analyzer_execution_enabled:
-        results = [AnalyzerResult(
-            tool_name="deterministic-rule-engine",
-            tool_version="1.0",
-            status="completed",
-            duration_ms=1,
-            findings=deterministic,
-            output={"normalized_findings": len(deterministic), "execution_mode": "deterministic"},
-        )]
-        results.extend(_run_tool(tool, command, parser, workspace) for tool, command, parser in _tool_commands(language, settings.run_project_tests))
-        return results
+        live_results = [
+            AnalyzerResult(
+                tool_name="deterministic-rule-engine",
+                tool_version="1.0",
+                status="completed",
+                duration_ms=1,
+                findings=deterministic,
+                output={
+                    "normalized_findings": len(deterministic),
+                    "execution_mode": "deterministic",
+                },
+            )
+        ]
+        live_results.extend(
+            _run_tool(tool, command, parser, workspace)
+            for tool, command, parser in _tool_commands(
+                language, settings.run_project_tests
+            )
+        )
+        return live_results
 
-    results: list[AnalyzerResult] = []
+    fallback_results: list[AnalyzerResult] = []
     tools = LANGUAGE_TOOLS.get(language.lower(), ["generic-static-review"])
     for index, tool in enumerate(tools):
         started = time.perf_counter()
-        tool_findings = [f for i, f in enumerate(deterministic) if i % max(len(tools), 1) == index]
+        tool_findings = [
+            f for i, f in enumerate(deterministic) if i % max(len(tools), 1) == index
+        ]
         duration = int((time.perf_counter() - started) * 1000) + 18 + index * 7
-        results.append(AnalyzerResult(
-            tool_name=tool,
-            tool_version="adapter-1.0",
-            status="completed",
-            duration_ms=duration,
-            findings=tool_findings,
-            output={"normalized_findings": len(tool_findings), "execution_mode": "safe_adapter"},
-        ))
-    return results
+        fallback_results.append(
+            AnalyzerResult(
+                tool_name=tool,
+                tool_version="adapter-1.0",
+                status="completed",
+                duration_ms=duration,
+                findings=tool_findings,
+                output={
+                    "normalized_findings": len(tool_findings),
+                    "execution_mode": "safe_adapter",
+                },
+            )
+        )
+    return fallback_results

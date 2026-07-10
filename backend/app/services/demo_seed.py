@@ -18,6 +18,7 @@ from ..models import (
 )
 from .review_pipeline import execute_review
 
+# Documented credential used only when DEMO_MODE is enabled.
 DEMO_PASSWORD = "demo1234"
 
 
@@ -39,19 +40,59 @@ def seed_demo(db: Session, reset: bool = False) -> dict:
         ]:
             db.query(model).delete()
         db.commit()
-    existing = db.query(Organization).filter(Organization.name == "Acme Engineering").first()
+    existing = (
+        db.query(Organization).filter(Organization.name == "Acme Engineering").first()
+    )
     if existing:
-        return {"seeded": False, "organization_id": existing.id, "message": "Demo data already exists"}
+        return {
+            "seeded": False,
+            "organization_id": existing.id,
+            "message": "Demo data already exists",
+        }
 
-    org = Organization(name="Acme Engineering", status="active", github_installation_id="demo-installation-1042")
+    org = Organization(
+        name="Acme Engineering",
+        status="active",
+        github_installation_id="demo-installation-1042",
+    )
     db.add(org)
     db.flush()
     users = [
-        User(organization_id=org.id, name="Amina Rahman", email="admin@demo.com", password_hash=hash_password(DEMO_PASSWORD), role="platform_admin"),
-        User(organization_id=org.id, name="Daniel Lee", email="manager@demo.com", password_hash=hash_password(DEMO_PASSWORD), role="engineering_manager"),
-        User(organization_id=org.id, name="Priya Nair", email="maintainer@demo.com", password_hash=hash_password(DEMO_PASSWORD), role="repository_maintainer"),
-        User(organization_id=org.id, name="Omar Hasan", email="developer@demo.com", password_hash=hash_password(DEMO_PASSWORD), role="developer"),
-        User(organization_id=org.id, name="Maya Chen", email="auditor@demo.com", password_hash=hash_password(DEMO_PASSWORD), role="auditor"),
+        User(
+            organization_id=org.id,
+            name="Amina Rahman",
+            email="admin@demo.com",
+            password_hash=hash_password(DEMO_PASSWORD),
+            role="platform_admin",
+        ),
+        User(
+            organization_id=org.id,
+            name="Daniel Lee",
+            email="manager@demo.com",
+            password_hash=hash_password(DEMO_PASSWORD),
+            role="engineering_manager",
+        ),
+        User(
+            organization_id=org.id,
+            name="Priya Nair",
+            email="maintainer@demo.com",
+            password_hash=hash_password(DEMO_PASSWORD),
+            role="repository_maintainer",
+        ),
+        User(
+            organization_id=org.id,
+            name="Omar Hasan",
+            email="developer@demo.com",
+            password_hash=hash_password(DEMO_PASSWORD),
+            role="developer",
+        ),
+        User(
+            organization_id=org.id,
+            name="Maya Chen",
+            email="auditor@demo.com",
+            password_hash=hash_password(DEMO_PASSWORD),
+            role="auditor",
+        ),
     ]
     db.add_all(users)
     db.flush()
@@ -73,7 +114,8 @@ def seed_demo(db: Session, reset: bool = False) -> dict:
             connection_status="active",
             webhook_status="active",
             active_review_profile=profile,
-            last_synchronized_at=datetime.now(timezone.utc) - timedelta(minutes=idx * 7),
+            last_synchronized_at=datetime.now(timezone.utc)
+            - timedelta(minutes=idx * 7),
         )
         db.add(repo)
         db.flush()
@@ -82,7 +124,12 @@ def seed_demo(db: Session, reset: bool = False) -> dict:
                 repository_id=repo.id,
                 review_profile=profile,
                 monitored_branches=["main", "develop", "release/*"],
-                ignored_paths=["vendor/**", "node_modules/**", "dist/**", "generated/**"],
+                ignored_paths=[
+                    "vendor/**",
+                    "node_modules/**",
+                    "dist/**",
+                    "generated/**",
+                ],
                 analyzer_settings={"enabled": True, "tools": "language_default"},
                 minimum_severity="medium",
             )
@@ -106,9 +153,17 @@ def seed_demo(db: Session, reset: bool = False) -> dict:
             assigned_reviewer="Priya Nair",
             changed_files=[
                 {"filename": "app/api/payments.py", "additions": 88, "deletions": 12},
-                {"filename": "app/services/payment_service.py", "additions": 142, "deletions": 31},
+                {
+                    "filename": "app/services/payment_service.py",
+                    "additions": 142,
+                    "deletions": 31,
+                },
                 {"filename": "requirements.txt", "additions": 2, "deletions": 1},
-                {"filename": "tests/test_payments.py", "additions": 54, "deletions": 17},
+                {
+                    "filename": "tests/test_payments.py",
+                    "additions": 54,
+                    "deletions": 17,
+                },
             ],
             commits=[{"sha": "a8f2c1d", "message": "add retry endpoint"}],
             diff_text="""diff --git a/app/api/payments.py b/app/api/payments.py
@@ -136,8 +191,16 @@ def seed_demo(db: Session, reset: bool = False) -> dict:
             deletions=42,
             assigned_reviewer="Priya Nair",
             changed_files=[
-                {"filename": "app/Http/Controllers/VendorDocumentController.php", "additions": 91, "deletions": 22},
-                {"filename": "app/Models/VendorDocument.php", "additions": 29, "deletions": 9},
+                {
+                    "filename": "app/Http/Controllers/VendorDocumentController.php",
+                    "additions": 91,
+                    "deletions": 22,
+                },
+                {
+                    "filename": "app/Models/VendorDocument.php",
+                    "additions": 29,
+                    "deletions": 9,
+                },
                 {"filename": "routes/web.php", "additions": 54, "deletions": 11},
             ],
             commits=[{"sha": "b762ed0", "message": "replace vendor files"}],
@@ -165,8 +228,16 @@ def seed_demo(db: Session, reset: bool = False) -> dict:
             deletions=76,
             assigned_reviewer="Daniel Lee",
             changed_files=[
-                {"filename": "src/hooks/useAccountSettings.ts", "additions": 71, "deletions": 20},
-                {"filename": "src/pages/Settings.tsx", "additions": 27, "deletions": 56},
+                {
+                    "filename": "src/hooks/useAccountSettings.ts",
+                    "additions": 71,
+                    "deletions": 20,
+                },
+                {
+                    "filename": "src/pages/Settings.tsx",
+                    "additions": 27,
+                    "deletions": 56,
+                },
             ],
             commits=[{"sha": "c45a998", "message": "shared settings hook"}],
             diff_text="""diff --git a/src/hooks/useAccountSettings.ts
@@ -190,8 +261,16 @@ def seed_demo(db: Session, reset: bool = False) -> dict:
             deletions=89,
             assigned_reviewer="Daniel Lee",
             changed_files=[
-                {"filename": "src/main/java/com/acme/LedgerReportService.java", "additions": 85, "deletions": 70},
-                {"filename": "src/test/java/com/acme/LedgerReportServiceTest.java", "additions": 37, "deletions": 19},
+                {
+                    "filename": "src/main/java/com/acme/LedgerReportService.java",
+                    "additions": 85,
+                    "deletions": 70,
+                },
+                {
+                    "filename": "src/test/java/com/acme/LedgerReportServiceTest.java",
+                    "additions": 37,
+                    "deletions": 19,
+                },
             ],
             commits=[{"sha": "d91fe33", "message": "stream reconciliation report"}],
             diff_text="""diff --git a/src/main/java/com/acme/LedgerReportService.java
@@ -250,11 +329,49 @@ def seed_demo(db: Session, reset: bool = False) -> dict:
         db.commit()
     db.add_all(
         [
-            WebhookEvent(delivery_id="demo-delivery-001", event_name="pull_request", action="opened", repository_full_name="acme/payments-api", payload={"demo": True}, status="processed"),
-            WebhookEvent(delivery_id="demo-delivery-002", event_name="pull_request", action="synchronize", repository_full_name="acme/vendor-portal", payload={"demo": True}, status="processed"),
-            AuditLog(actor_id=users[2].id, organization_id=org.id, repository_id=repos[0].id, pull_request_id=prs[0].id, event_type="review.analysis_completed", new_value={"risk": prs[0].risk_score}, result="success"),
-            AuditLog(actor_id=users[1].id, organization_id=org.id, repository_id=repos[2].id, pull_request_id=prs[2].id, event_type="finding.false_positive", new_value={"reason": "Expected shared validation layer"}, result="success"),
-            AuditLog(actor_id=users[2].id, organization_id=org.id, repository_id=repos[3].id, pull_request_id=prs[3].id, event_type="review.approved", new_value={"decision": "request_changes"}, result="success"),
+            WebhookEvent(
+                delivery_id="demo-delivery-001",
+                event_name="pull_request",
+                action="opened",
+                repository_full_name="acme/payments-api",
+                payload={"demo": True},
+                status="processed",
+            ),
+            WebhookEvent(
+                delivery_id="demo-delivery-002",
+                event_name="pull_request",
+                action="synchronize",
+                repository_full_name="acme/vendor-portal",
+                payload={"demo": True},
+                status="processed",
+            ),
+            AuditLog(
+                actor_id=users[2].id,
+                organization_id=org.id,
+                repository_id=repos[0].id,
+                pull_request_id=prs[0].id,
+                event_type="review.analysis_completed",
+                new_value={"risk": prs[0].risk_score},
+                result="success",
+            ),
+            AuditLog(
+                actor_id=users[1].id,
+                organization_id=org.id,
+                repository_id=repos[2].id,
+                pull_request_id=prs[2].id,
+                event_type="finding.false_positive",
+                new_value={"reason": "Expected shared validation layer"},
+                result="success",
+            ),
+            AuditLog(
+                actor_id=users[2].id,
+                organization_id=org.id,
+                repository_id=repos[3].id,
+                pull_request_id=prs[3].id,
+                event_type="review.approved",
+                new_value={"decision": "request_changes"},
+                result="success",
+            ),
         ]
     )
     db.commit()
