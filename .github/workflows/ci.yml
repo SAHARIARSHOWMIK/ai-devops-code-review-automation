@@ -96,3 +96,22 @@ jobs:
         run: docker build -f frontend/Dockerfile -t devops-review-frontend:ci .
       - name: Build analyzer worker image
         run: docker build -f docker/analyzer.Dockerfile -t devops-review-analyzer:ci .
+      - name: Smoke-test analyzer toolchain
+        run: |
+          docker run --rm devops-review-analyzer:ci sh -lc '
+            python --version &&
+            celery --version &&
+            ruff --version &&
+            bandit --version &&
+            mypy --version &&
+            node --version &&
+            npm --version &&
+            eslint --version &&
+            tsc --version &&
+            php --version &&
+            composer --version &&
+            phpstan --version &&
+            pint --version &&
+            java -version &&
+            mvn -version
+          '

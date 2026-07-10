@@ -44,3 +44,15 @@ The dependency lock referenced a private build-environment registry and the work
 - Workflow YAML, Docker Compose YAML, Docker build paths, lockfile JSON, and public-registry references: validated.
 
 Docker is unavailable in the artifact sandbox, so the three image builds were not executed locally. The corrected GitHub Actions workflow builds the backend, frontend, and analyzer-worker images after the test jobs pass.
+
+## Analyzer image follow-up correction (2026-07-11)
+
+A later analyzer-worker build exposed an additional Composer platform requirement. Laravel Pint 1.24 requires PHP's `ext-xml` in addition to `ext-mbstring` and `ext-tokenizer`. The analyzer image now installs and validates the complete PHP runtime needed by the global Composer tools:
+
+- `php-curl`
+- `php-mbstring`
+- `php-xml`
+- `php-zip`
+- `unzip`
+
+Composer now uses a deterministic global home (`/opt/composer`), root-container mode is explicit, and Python, npm, and Composer installations are split into separate Docker layers. The Dockerfile verifies required PHP extensions and executes `phpstan --version` and `pint --version` during the image build. CI also smoke-tests the complete analyzer toolchain after the image is built.

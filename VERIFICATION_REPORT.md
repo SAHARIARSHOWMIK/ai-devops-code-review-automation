@@ -21,3 +21,13 @@
 ## Not executable in this build environment
 
 Docker is not installed in the artifact environment, so the images were not built locally. GitHub Actions includes backend, frontend, and analyzer-worker Docker build jobs. Live GitHub publication, external LLM calls, public deployment, and a demonstration video require credentials or external infrastructure owned by the user.
+
+## Analyzer Docker correction (2026-07-11)
+
+- Confirmed the reported Composer failure is caused by missing PHP XML support required by Laravel Pint.
+- Added `php-xml` and supporting Composer extraction/download packages (`php-curl`, `php-zip`, and `unzip`).
+- Added build-time PHP-extension checks and PHPStan/Pint executable checks.
+- Added a post-build GitHub Actions smoke test for Python, Celery, Ruff, Bandit, mypy, Node.js, npm, ESLint, TypeScript, PHP, Composer, PHPStan, Pint, Java, and Maven.
+- Backend tests and frontend type-check/build/audit were rerun successfully against this corrected source tree.
+
+A Docker daemon is unavailable in this artifact environment, so the final image execution remains delegated to GitHub Actions. The added build-time and post-build checks make any remaining toolchain issue fail at the exact command responsible.
