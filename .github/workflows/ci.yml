@@ -98,7 +98,7 @@ jobs:
         run: docker build -f docker/analyzer.Dockerfile -t devops-review-analyzer:ci .
       - name: Smoke-test analyzer toolchain
         run: |
-          docker run --rm devops-review-analyzer:ci sh -lc '
+          docker run --rm devops-review-analyzer:ci sh -c '
             python --version &&
             celery --version &&
             ruff --version &&
