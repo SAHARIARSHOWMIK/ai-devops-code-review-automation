@@ -19,6 +19,7 @@ RUN apt-get update \
         git \
         maven \
         php-cli \
+        php-mbstring \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt backend/analyzer-requirements.txt /app/
